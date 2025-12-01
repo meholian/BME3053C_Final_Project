@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "source": "Condensed Mayo Clinic condition summaries (public information)",
+    "source": "Condensed Mayo Clinic condition summaries plus Cleveland Clinic and UF Health Shands public patient-education pages",
     "disclaimer": "Educational prototype only; not a substitute for professional clinical judgement."
   },
   "symptom_groups": [
@@ -47,7 +47,8 @@
         {"id": "abdominal_pain", "label": "Abdominal pain"},
         {"id": "nausea", "label": "Nausea"},
         {"id": "vomiting", "label": "Vomiting"},
-        {"id": "diarrhea", "label": "Diarrhea"}
+        {"id": "diarrhea", "label": "Diarrhea"},
+        {"id": "blood_in_stool", "label": "Blood in stool"}
       ]
     },
     {
@@ -120,11 +121,25 @@
       "advice": "Track triggers and use rescue medications as prescribed; rule out stroke if symptoms are new."
     },
     {
+      "name": "Chronic Obstructive Pulmonary Disease Exacerbation",
+      "systems": ["Respiratory"],
+      "supporting_symptoms": ["persistent_cough", "wheezing", "rapid_breathing", "shortness_of_breath"],
+      "pain_weight": 0.4,
+      "advice": "Follow Cleveland Clinic COPD action plans: use rescue inhalers, increase controller meds per plan, and seek urgent care if saturation drops or breathing worsens."
+    },
+    {
       "name": "Acute Gastroenteritis",
       "systems": ["Gastrointestinal"],
       "supporting_symptoms": ["abdominal_pain", "nausea", "vomiting", "diarrhea"],
       "pain_weight": 0.5,
       "advice": "Hydration and electrolyte replacement are essential; seek care for blood in stool or persistent vomiting."
+    },
+    {
+      "name": "Ulcerative Colitis Flare (UF Health Shands)",
+      "systems": ["Gastrointestinal"],
+      "supporting_symptoms": ["abdominal_pain", "diarrhea", "fatigue", "blood_in_stool"],
+      "pain_weight": 0.6,
+      "advice": "UF Health Shands guidance: increase monitoring, ensure hydration, and contact gastroenterology for steroid or biologic adjustment when flares escalate."
     },
     {
       "name": "Inflammatory Myositis",

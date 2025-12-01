@@ -28,14 +28,15 @@ The app will print a `Local URL` (default `http://localhost:8501`). Open it in t
 ## Usage Guide
 
 - **Step 1:** Expand each organ-system accordion (cardio, respiratory, skeletal, neural, GI, muscular, visual) and tick symptoms that apply. Every option is a checkbox for quick selection.
-- **Step 2:** Set the overall pain slider between 0 (no pain) and 10 (extreme pain) to capture severity.
-- **Step 3:** Press **Analyze Symptom Profile** to run the decision tree. Review the confidence-ranked diagnoses, matched hallmark symptoms, and guidance text. Contact emergency services for high-risk warnings.
+- **Step 2:** Enter how many days each selected symptom has been present in the **Symptom Durations** section.
+- **Step 3:** Set the overall pain slider between 0 (no pain) and 10 (extreme pain) to capture severity.
+- **Step 4:** Press **Analyze Symptom Profile** to run the duration-aware decision tree. Review the confidence-ranked diagnoses, matched hallmark symptoms, and guidance text. Contact emergency services for high-risk warnings.
 
 ## Data Description
 
 - **File:** `data/symptom_knowledge.json`
 - **Contents:** Organ-system symptom catalog plus curated diagnosis entries (supporting symptoms, qualitative pain weighting, suggested actions).
-- **Source:** Condensed from publicly available Mayo Clinic condition summaries; no proprietary excerpts are stored.
+- **Source:** Condensed from publicly available Mayo Clinic, Cleveland Clinic, and UF Health Shands patient-education summaries; no proprietary excerpts are stored.
 
 ## Project Structure
 

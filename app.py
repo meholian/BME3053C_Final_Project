@@ -112,8 +112,19 @@ def _risk_level(probability: float, pain_score: int, pain_weight: float) -> str:
     return "Low"
 
 
-def _format_symptom_hits(selected: Set[str], reference: Sequence[str], lookup: Dict[str, str]) -> str:
-    matches = [lookup[sid] for sid in reference if sid in selected]
+def _format_symptom_hits(
+    selected: Set[str],
+    reference: Sequence[str],
+    lookup: Dict[str, str],
+    durations: Dict[str, int] | None = None,
+) -> str:
+    matches: List[str] = []
+    for sid in reference:
+        if sid in selected:
+            label = lookup[sid]
+            if durations and sid in durations:
+                label = f"{label} ({durations[sid]} d)"
+            matches.append(label)
     return ", ".join(matches) if matches else "None of the key symptoms selected"
 
 
@@ -140,6 +151,20 @@ def _advice_requires_emergency(advice: str | None) -> bool:
     return any(token in text for token in EMERGENCY_TOKENS)
 
 
+def _duration_weight(diag_meta: Dict, durations: Dict[str, int]) -> float:
+    if not durations:
+        return 1.0
+    windowed_days: List[int] = []
+    for sym in diag_meta.get("supporting_symptoms", []):
+        if sym in durations:
+            windowed_days.append(min(durations[sym], 60))
+    if not windowed_days:
+        return 1.0
+    avg_days = sum(windowed_days) / len(windowed_days)
+    boost = min(avg_days / 30.0, 0.4)
+    return 1.0 + boost
+
+
 def main() -> None:
     st.set_page_config(page_title="Biomedical Symptom Triage", layout="wide")
     knowledge, model, feature_columns = build_model()
@@ -158,6 +183,7 @@ def main() -> None:
         for symptom in group["symptoms"]
     }
 
+    symptom_durations: Dict[str, int] = {}
     with st.form("symptom_form"):
         st.subheader("Organ-System Symptom Checklist")
         selected: Set[str] = set()
@@ -170,6 +196,24 @@ def main() -> None:
                         symptom["label"], key=f"cb_{group['system']}_{symptom['id']}"
                     ):
                         selected.add(symptom["id"])
+        st.subheader("Symptom Durations (days experienced)")
+        if selected:
+            duration_columns = st.columns(min(3, len(selected)))
+            for idx, symptom_id in enumerate(sorted(selected)):
+                label = symptom_label_lookup.get(symptom_id, symptom_id)
+                column = duration_columns[idx % len(duration_columns)]
+                duration_key = f"dur_{symptom_id}"
+                duration = column.number_input(
+                    f"{label}",
+                    min_value=0,
+                    max_value=365,
+                    value=2,
+                    step=1,
+                    key=duration_key,
+                )
+                symptom_durations[symptom_id] = int(duration)
+        else:
+            st.caption("Select symptoms above to log how long they have been present.")
         pain_score = st.slider(
             "Overall pain intensity (0 = none, 10 = extreme)",
             min_value=0,
@@ -189,6 +233,22 @@ def main() -> None:
     ranking = _prediction_payload(selected, pain_score, model, feature_columns)
     diagnosis_lookup = {diag["name"]: diag for diag in knowledge["diagnoses"]}
 
+    # Re-weight predictions to account for symptom duration emphasis.
+    adjusted_entries: List[Tuple[str, float]] = []
+    total_weighted = 0.0
+    for name, probability in ranking:
+        diag_meta = diagnosis_lookup.get(name, {})
+        factor = _duration_weight(diag_meta, symptom_durations)
+        weighted_prob = probability * factor
+        adjusted_entries.append((name, weighted_prob))
+        total_weighted += weighted_prob
+    if total_weighted > 0:
+        ranking = sorted(
+            [(name, prob / total_weighted) for name, prob in adjusted_entries],
+            key=lambda item: item[1],
+            reverse=True,
+        )
+
     st.subheader("Model Output")
     top_entries = ranking[:3]
     table_rows = []
@@ -206,7 +266,10 @@ def main() -> None:
                 "Confidence": f"{probability:.0%}",
                 "Risk Level": risk_bucket,
                 "Matched Symptoms": _format_symptom_hits(
-                    selected, diag_meta.get("supporting_symptoms", []), symptom_label_lookup
+                    selected,
+                    diag_meta.get("supporting_symptoms", []),
+                    symptom_label_lookup,
+                    symptom_durations,
                 ),
                 "Suggested Action": advice_text,
             }
@@ -219,7 +282,10 @@ def main() -> None:
     for name, probability in top_entries:
         diag_meta = diagnosis_lookup.get(name, {})
         matched = _format_symptom_hits(
-            selected, diag_meta.get("supporting_symptoms", []), symptom_label_lookup
+            selected,
+            diag_meta.get("supporting_symptoms", []),
+            symptom_label_lookup,
+            symptom_durations,
         )
         st.markdown(
             f"**{name}** — model confidence {probability:.1%}.\n"
@@ -228,6 +294,20 @@ def main() -> None:
             f"- Pain sensitivity weighting: {diag_meta.get('pain_weight', 0.5):.1f}\n"
             f"- Guidance: {diag_meta.get('advice', 'Consult a licensed clinician.')}"
         )
+
+    if symptom_durations:
+        st.markdown("---")
+        st.subheader("Symptom Duration Log")
+        duration_rows = [
+            {
+                "Symptom": symptom_label_lookup[sid],
+                "Days": days,
+            }
+            for sid, days in symptom_durations.items()
+            if sid in selected
+        ]
+        if duration_rows:
+            st.table(pd.DataFrame(duration_rows))
 
     st.markdown("---")
     if emergency_flag:
