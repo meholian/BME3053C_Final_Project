@@ -1,0 +1,151 @@
+{
+  "metadata": {
+    "source": "Condensed Mayo Clinic condition summaries (public information)",
+    "disclaimer": "Educational prototype only; not a substitute for professional clinical judgement."
+  },
+  "symptom_groups": [
+    {
+      "system": "Cardiovascular",
+      "symptoms": [
+        {"id": "chest_pain", "label": "Chest pain or pressure"},
+        {"id": "shortness_of_breath", "label": "Shortness of breath"},
+        {"id": "palpitations", "label": "Heart palpitations"},
+        {"id": "leg_swelling", "label": "Leg or ankle swelling"}
+      ]
+    },
+    {
+      "system": "Respiratory",
+      "symptoms": [
+        {"id": "persistent_cough", "label": "Persistent cough"},
+        {"id": "wheezing", "label": "Wheezing"},
+        {"id": "rapid_breathing", "label": "Rapid breathing"},
+        {"id": "chest_tightness", "label": "Chest tightness"}
+      ]
+    },
+    {
+      "system": "Skeletal",
+      "symptoms": [
+        {"id": "joint_pain", "label": "Joint pain"},
+        {"id": "bone_tenderness", "label": "Bone tenderness"},
+        {"id": "reduced_range_of_motion", "label": "Reduced range of motion"},
+        {"id": "limb_swelling", "label": "Swelling in limbs"}
+      ]
+    },
+    {
+      "system": "Neural",
+      "symptoms": [
+        {"id": "dizziness", "label": "Dizziness or loss of balance"},
+        {"id": "numbness", "label": "Numbness or tingling"},
+        {"id": "speech_difficulty", "label": "Difficulty speaking"},
+        {"id": "seizures", "label": "Seizure activity"},
+        {"id": "headache", "label": "Severe headache"}
+      ]
+    },
+    {
+      "system": "Gastrointestinal",
+      "symptoms": [
+        {"id": "abdominal_pain", "label": "Abdominal pain"},
+        {"id": "nausea", "label": "Nausea"},
+        {"id": "vomiting", "label": "Vomiting"},
+        {"id": "diarrhea", "label": "Diarrhea"}
+      ]
+    },
+    {
+      "system": "Muscular",
+      "symptoms": [
+        {"id": "muscle_weakness", "label": "Muscle weakness"},
+        {"id": "muscle_cramps", "label": "Muscle cramps"},
+        {"id": "tremors", "label": "Muscle tremors"},
+        {"id": "fatigue", "label": "Whole-body fatigue"}
+      ]
+    },
+    {
+      "system": "Visual",
+      "symptoms": [
+        {"id": "blurred_vision", "label": "Blurred vision"},
+        {"id": "eye_pain", "label": "Eye pain"},
+        {"id": "light_sensitivity", "label": "Light sensitivity"},
+        {"id": "vision_loss", "label": "Sudden vision loss"}
+      ]
+    }
+  ],
+  "diagnoses": [
+    {
+      "name": "Acute Coronary Syndrome",
+      "systems": ["Cardiovascular"],
+      "supporting_symptoms": ["chest_pain", "shortness_of_breath", "palpitations"],
+      "pain_weight": 0.9,
+      "advice": "Immediate emergency evaluation is recommended for chest pain with breathing difficulty."
+    },
+    {
+      "name": "Congestive Heart Failure",
+      "systems": ["Cardiovascular", "Respiratory"],
+      "supporting_symptoms": ["shortness_of_breath", "leg_swelling", "fatigue"],
+      "pain_weight": 0.6,
+      "advice": "Monitor fluid status and seek urgent care for rapid weight gain or swelling."
+    },
+    {
+      "name": "Asthma Exacerbation",
+      "systems": ["Respiratory"],
+      "supporting_symptoms": ["wheezing", "chest_tightness", "persistent_cough"],
+      "pain_weight": 0.3,
+      "advice": "Use prescribed rescue inhaler and contact care team if symptoms escalate."
+    },
+    {
+      "name": "Community-Acquired Pneumonia",
+      "systems": ["Respiratory", "Cardiovascular"],
+      "supporting_symptoms": ["persistent_cough", "rapid_breathing", "chest_pain"],
+      "pain_weight": 0.5,
+      "advice": "Fever or breathing distress warrants urgent in-person assessment."
+    },
+    {
+      "name": "Osteoarthritis Flare",
+      "systems": ["Skeletal"],
+      "supporting_symptoms": ["joint_pain", "reduced_range_of_motion", "limb_swelling"],
+      "pain_weight": 0.4,
+      "advice": "Consider rest, ice, and orthopedic follow-up for persistent joint pain."
+    },
+    {
+      "name": "Ischemic Stroke Warning",
+      "systems": ["Neural", "Visual"],
+      "supporting_symptoms": ["speech_difficulty", "numbness", "dizziness", "vision_loss"],
+      "pain_weight": 0.7,
+      "advice": "Call emergency services immediately when stroke warning signs appear."
+    },
+    {
+      "name": "Migraine with Aura",
+      "systems": ["Neural", "Visual"],
+      "supporting_symptoms": ["headache", "light_sensitivity", "blurred_vision"],
+      "pain_weight": 0.8,
+      "advice": "Track triggers and use rescue medications as prescribed; rule out stroke if symptoms are new."
+    },
+    {
+      "name": "Acute Gastroenteritis",
+      "systems": ["Gastrointestinal"],
+      "supporting_symptoms": ["abdominal_pain", "nausea", "vomiting", "diarrhea"],
+      "pain_weight": 0.5,
+      "advice": "Hydration and electrolyte replacement are essential; seek care for blood in stool or persistent vomiting."
+    },
+    {
+      "name": "Inflammatory Myositis",
+      "systems": ["Muscular"],
+      "supporting_symptoms": ["muscle_weakness", "muscle_cramps", "fatigue"],
+      "pain_weight": 0.6,
+      "advice": "Document weakness progression and coordinate rheumatology evaluation." 
+    },
+    {
+      "name": "Acute Angle-Closure Glaucoma",
+      "systems": ["Visual"],
+      "supporting_symptoms": ["eye_pain", "vision_loss", "light_sensitivity"],
+      "pain_weight": 0.9,
+      "advice": "Emergent ophthalmology assessment is needed to prevent permanent vision damage."
+    },
+    {
+      "name": "General Check Needed",
+      "systems": ["Cardiovascular", "Respiratory", "Skeletal", "Neural", "Gastrointestinal", "Muscular", "Visual"],
+      "supporting_symptoms": [],
+      "pain_weight": 0.2,
+      "advice": "Symptoms are nonspecific; schedule a comprehensive primary care visit."
+    }
+  ]
+}
