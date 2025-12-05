@@ -2,6 +2,10 @@
 from __future__ import annotations
 
 import json
+import math
+import re
+import textwrap
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Sequence, Set, Tuple
 
@@ -9,9 +13,66 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from sklearn.tree import DecisionTreeClassifier
+import pgeocode
 
 DATA_PATH = Path(__file__).resolve().parent / "data" / "symptom_knowledge.json"
 EMERGENCY_TOKENS = ("emergency", "emergent", "911", "call 911")
+
+HOSPITAL_DIRECTORY: List[Dict[str, str | float]] = [
+    {
+        "name": "UF Health Shands Hospital",
+        "city": "Gainesville, FL",
+        "phone": "352-265-0111",
+        "lat": 29.6516,
+        "lon": -82.341,
+    },
+    {
+        "name": "Mayo Clinic Hospital",
+        "city": "Jacksonville, FL",
+        "phone": "904-953-2000",
+        "lat": 30.2666,
+        "lon": -81.3899,
+    },
+    {
+        "name": "Tampa General Hospital",
+        "city": "Tampa, FL",
+        "phone": "813-844-7000",
+        "lat": 27.9392,
+        "lon": -82.4571,
+    },
+    {
+        "name": "AdventHealth Orlando",
+        "city": "Orlando, FL",
+        "phone": "407-303-5600",
+        "lat": 28.5417,
+        "lon": -81.3727,
+    },
+    {
+        "name": "Cleveland Clinic Florida",
+        "city": "Weston, FL",
+        "phone": "954-659-5000",
+        "lat": 26.1479,
+        "lon": -80.3659,
+    },
+    {
+        "name": "Emory University Hospital",
+        "city": "Atlanta, GA",
+        "phone": "404-712-2000",
+        "lat": 33.7938,
+        "lon": -84.3201,
+    },
+]
+
+ZIP_COORDINATES: Dict[str, Tuple[float, float]] = {
+    "32608": (29.6113, -82.3940),  # Gainesville, FL
+    "32224": (30.2704, -81.4699),  # Jacksonville, FL
+    "33606": (27.9360, -82.4560),  # Tampa, FL
+    "32803": (28.5573, -81.3521),  # Orlando, FL
+    "33331": (26.0635, -80.3663),  # Weston, FL
+    "30322": (33.7982, -84.3220),  # Atlanta, GA
+}
+
+_ZIP_GEOCODER = pgeocode.Nominatim("us")
 
 
 @st.cache_data(show_spinner=False)
@@ -164,6 +225,61 @@ def _duration_weight(diag_meta: Dict, durations: Dict[str, int]) -> float:
     boost = min(avg_days / 30.0, 0.4)
     return 1.0 + boost
 
+def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    radius_miles = 3958.8
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lon2 - lon1)
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return radius_miles * c
+
+
+def _nearest_hospitals(lat: float, lon: float, limit: int = 3) -> List[Dict[str, str]]:
+    distances: List[Tuple[float, Dict[str, str]]] = []
+    for facility in HOSPITAL_DIRECTORY:
+        facility_lat = float(facility["lat"])
+        facility_lon = float(facility["lon"])
+        distance = _haversine_distance(lat, lon, facility_lat, facility_lon)
+        distances.append(
+            (
+                distance,
+                {
+                    "Hospital": facility["name"],
+                    "City": facility["city"],
+                    "Phone": facility["phone"],
+                    "Distance (mi)": f"{distance:.1f}",
+                },
+            )
+        )
+    distances.sort(key=lambda item: item[0])
+    return [entry for _, entry in distances[:limit]]
+
+
+@lru_cache(maxsize=256)
+def _geocode_zip_online(zip_code: str) -> Tuple[float, float] | None:
+    try:
+        result = _ZIP_GEOCODER.query_postal_code(zip_code)
+    except Exception:
+        return None
+    if result is None:
+        return None
+    latitude = result.latitude
+    longitude = result.longitude
+    if latitude is None or longitude is None or pd.isna(latitude) or pd.isna(longitude):
+        return None
+    return float(latitude), float(longitude)
+
+
+def _coords_for_zip(zip_code: str) -> Tuple[float, float] | None:
+    if not zip_code:
+        return None
+    normalized = zip_code.strip()
+    if not re.fullmatch(r"\d{5}", normalized):
+        return None
+    if normalized in ZIP_COORDINATES:
+        return ZIP_COORDINATES[normalized]
+    return _geocode_zip_online(normalized)
 
 def main() -> None:
     st.set_page_config(page_title="Biomedical Symptom Triage", layout="wide")
@@ -189,6 +305,8 @@ def main() -> None:
     # Track selections in session_state so checkboxes update instantly
     if "selected_ids" not in st.session_state:
         st.session_state["selected_ids"] = set()
+    if "analysis_ready" not in st.session_state:
+        st.session_state["analysis_ready"] = False
 
     selected: Set[str] = set(st.session_state["selected_ids"])
 
@@ -241,11 +359,15 @@ def main() -> None:
     # Analyze button to trigger computation (replaces form_submit_button)
     submitted = st.button("Analyze Symptom Profile", type="primary")
 
-    if not submitted:
+    if submitted:
+        st.session_state["analysis_ready"] = True
+
+    if not st.session_state["analysis_ready"]:
         st.info("Use the controls above to select symptoms and press Analyze.")
         st.stop()
 
     if not selected and pain_score == 0:
+        st.session_state["analysis_ready"] = False
         st.warning("Select at least one symptom or report a non-zero pain score to proceed.")
         return
 
@@ -294,7 +416,47 @@ def main() -> None:
             }
         )
 
-    st.dataframe(pd.DataFrame(table_rows), use_container_width=True)
+    results_df = pd.DataFrame(table_rows)
+    for column, width in ("Suggested Action", 60), ("Matched Symptoms", 46):
+        if column in results_df.columns:
+            results_df[column] = results_df[column].map(
+                lambda value, wrap_width=width: textwrap.fill(value, width=wrap_width)
+                if isinstance(value, str)
+                else value
+            )
+
+    st.table(results_df)
+
+    should_show_locator = emergency_flag
+    if should_show_locator:
+        st.markdown("---")
+        st.subheader("Emergency Resources")
+        st.info(
+            "Emergency-level guidance detected. Use the locator below to find nearby hospitals."
+        )
+        with st.expander("Locate Nearby Hospitals", expanded=False):
+            st.caption(
+                "Enter your ZIP code to approximate the closest hospitals in our reference list."
+            )
+            zip_code = st.text_input(
+                "ZIP code",
+                value="32608",
+                max_chars=5,
+                help="Enter any US ZIP code; we'll approximate the nearest hospitals from the reference list.",
+                key="hospital_locator_zip_copy",
+            )
+            if st.button("Find Hospitals", key="hospital_locator_btn_copy"):
+                coords = _coords_for_zip(zip_code)
+                if not coords:
+                    st.error(
+                        "Unable to locate that ZIP code. Confirm the 5-digit code or try a nearby ZIP before using map apps for exact directions."
+                    )
+                else:
+                    nearest = _nearest_hospitals(coords[0], coords[1], limit=3)
+                    st.table(pd.DataFrame(nearest))
+                    st.caption(
+                        "Distances are approximate great-circle estimates based on ZIP centroids. Call ahead to confirm availability."
+                    )
 
     st.markdown("---")
     st.subheader("Why these diagnoses?")
